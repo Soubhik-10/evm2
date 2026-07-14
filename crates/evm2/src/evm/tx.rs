@@ -3,6 +3,7 @@
 use super::{BlockStateAccumulator, Evm, StateChangeSink, StateChanges};
 use crate::{ErrorCode, EvmTypesHost, interpreter::InstrStop};
 use alloc::vec::Vec;
+use alloy_eips::eip8141::FrameReceipt;
 use alloy_primitives::{Address, Bytes, Log};
 use core::fmt;
 use derive_where::derive_where;
@@ -40,10 +41,21 @@ pub struct TxResult<T: EvmTypesHost = crate::BaseEvmTypes> {
     pub logs: Vec<Log>,
     /// Host error code raised during execution, if any.
     pub error_code: Option<ErrorCode>,
+    /// EIP-8141 payer and per-frame execution results for a frame transaction.
+    pub frame_result: Option<FrameTransactionResult>,
     /// EVM type-specific extension data.
     pub ext: T::TxResultExt,
     #[doc(hidden)] // Not public API. Please use an existing constructor.
     pub _non_exhaustive: (),
+}
+
+/// EIP-8141 transaction result data needed to construct its typed receipt.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct FrameTransactionResult {
+    /// Account that approved and paid the transaction fee.
+    pub payer: Address,
+    /// Per-frame status, gas usage, and logs.
+    pub frame_receipts: Vec<FrameReceipt>,
 }
 
 impl<T: EvmTypesHost> TxResult<T> {

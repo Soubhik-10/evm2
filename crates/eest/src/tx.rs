@@ -162,7 +162,7 @@ pub(crate) fn build_recovered_tx(fields: TxFields) -> Result<RecoveredTxEnvelope
 
     let tx =
         request.build_consensus_tx().map_err(|err| TxBuildError::BuildTransaction(err.error))?;
-    Ok(recovered_envelope(tx, fields.caller))
+    recovered_envelope(tx, fields.caller)
 }
 
 /// Converts EEST access list items into RPC access list items.
@@ -197,30 +197,51 @@ pub(crate) fn recover_address(private_key: &[u8]) -> Option<Address> {
     Some(Address::from_raw_public_key(&public_key.as_bytes()[1..]))
 }
 
-fn recovered_envelope(tx: TypedTransaction, caller: Address) -> RecoveredTxEnvelope {
+fn recovered_envelope(
+    tx: TypedTransaction,
+    caller: Address,
+) -> Result<RecoveredTxEnvelope, TxBuildError> {
     match tx {
         TypedTransaction::Legacy(tx) => {
-            RecoveredTxEnvelope::Legacy(Recovered::new_unchecked(tx, caller))
+            Ok(RecoveredTxEnvelope::Legacy(Recovered::new_unchecked(tx, caller)))
         }
         TypedTransaction::Eip2930(tx) => {
-            RecoveredTxEnvelope::Eip2930(Recovered::new_unchecked(tx, caller))
+            Ok(RecoveredTxEnvelope::Eip2930(Recovered::new_unchecked(tx, caller)))
         }
         TypedTransaction::Eip1559(tx) => {
-            RecoveredTxEnvelope::Eip1559(Recovered::new_unchecked(tx, caller))
+            Ok(RecoveredTxEnvelope::Eip1559(Recovered::new_unchecked(tx, caller)))
         }
         TypedTransaction::Eip4844(tx) => {
-            RecoveredTxEnvelope::Eip4844(Recovered::new_unchecked(tx, caller))
+            Ok(RecoveredTxEnvelope::Eip4844(Recovered::new_unchecked(tx, caller)))
         }
         TypedTransaction::Eip7702(tx) => {
-            RecoveredTxEnvelope::from(Recovered::new_unchecked(tx, caller))
+            Ok(RecoveredTxEnvelope::from(Recovered::new_unchecked(tx, caller)))
+        }
+        TypedTransaction::Eip8141(tx) => {
+            let sender = tx.sender;
+            Ok(RecoveredTxEnvelope::from(Recovered::new_unchecked(tx, sender)))
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::TestAuthorization;
+    use super::{TestAuthorization, recovered_envelope};
+    use alloy_consensus::{TxEip8141, TypedTransaction};
+    use alloy_primitives::Address;
     use serde_json::json;
+
+    #[test]
+    fn recovers_eip8141_from_its_explicit_sender() {
+        let sender = Address::from([0x11; 20]);
+        let envelope = recovered_envelope(
+            TypedTransaction::Eip8141(TxEip8141 { sender, ..Default::default() }),
+            Address::ZERO,
+        )
+        .unwrap();
+
+        assert_eq!(envelope.signer(), sender);
+    }
 
     #[test]
     fn test_authorization_serializes_as_raw_fixture_value() {

@@ -249,6 +249,7 @@ const fn tx_type(tx: &EthereumTxEnvelope<TxEip4844>) -> u8 {
         EthereumTxEnvelope::Eip1559(_) => 2,
         EthereumTxEnvelope::Eip4844(_) => 3,
         EthereumTxEnvelope::Eip7702(_) => 4,
+        EthereumTxEnvelope::Eip8141(_) => 6,
     }
 }
 

@@ -131,7 +131,7 @@ use crate::{
     trustme,
     version::{EvmFeatures, GasId},
 };
-use alloc::{boxed::Box, sync::Arc, vec};
+use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
 use alloy_eips::eip2718::Typed2718;
 use alloy_primitives::{Address, B256, Bytes, Log, LogData};
 #[cfg(feature = "async")]
@@ -156,6 +156,9 @@ pub use system::{
 mod any;
 pub use any::NonStaticAny;
 
+mod frame;
+pub(crate) use frame::{FrameApprovalState, FrameTransactionContext};
+
 pub mod bal;
 pub use bal::{
     AccountBal, AccountInfoBal, Bal, BalChange, BalChanges, BalCodeChange, BalContext, BalError,
@@ -170,9 +173,10 @@ pub use db::{
 };
 
 mod tx;
-pub use tx::{ExecutedTx, TxResult, TxResultWithState};
+pub use tx::{ExecutedTx, FrameTransactionResult, TxResult, TxResultWithState};
 
 mod state;
+pub(crate) use state::WarmAccessSnapshot;
 pub use state::{
     AccountChange, AccountChangeRef, AccountHandle, AccountInfo, AccountInfoRef,
     BlockStateAccumulator, JournalEntry, NoopChangeSink, State, StateChangeSink, StateChangeSource,
@@ -254,6 +258,12 @@ pub struct Evm<'a, T: EvmTypesHost> {
     #[derive_where(skip)]
     current_frame: Option<NonNull<Interpreter<'static, 'static, T>>>,
     #[derive_where(skip)]
+    frame_tx: Option<FrameTransactionContext>,
+    #[derive_where(skip)]
+    frame_approval_stack: Vec<FrameApprovalState>,
+    #[derive_where(skip)]
+    frame_root_approval: Option<FrameApprovalState>,
+    #[derive_where(skip)]
     running: bool,
     #[cfg(feature = "async")]
     #[derive_where(skip)]
@@ -331,6 +341,9 @@ impl<'a, T: EvmTypes> Evm<'a, T> {
             inspector: None,
             interpreter_runner: None,
             current_frame: None,
+            frame_tx: None,
+            frame_approval_stack: Vec::new(),
+            frame_root_approval: None,
             running: false,
             #[cfg(feature = "async")]
             async_stack: r#async::FiberStack::default(),
@@ -848,8 +861,10 @@ impl<'a, T: EvmTypes<Tx: Typed2718>> Evm<'a, T> {
     /// [`ExecutedTx::discard`].
     pub fn transact(&mut self, tx: &T::Tx) -> HandlerResult<ExecutedTx<'_, 'a, T>> {
         self.clear_top_level_error_state();
+        self.clear_frame_transaction_context();
         let handler = self.registry.try_get_by_type(tx.ty())?;
         let result = handler.call(tx, self);
+        self.clear_frame_transaction_context();
         if let Some(code) = self.error_code {
             self.state.clear_transaction_state();
             return Err(HandlerError::Fatal(code));
@@ -1500,6 +1515,7 @@ impl<'a, T: EvmTypes> Evm<'a, T> {
             .current_frame
             .replace(NonNull::from(&mut *interp_ref).cast::<Interpreter<'static, 'static, T>>());
         let interpreter_runner = self.interpreter_runner.clone();
+        let approval_scope = self.enter_frame_approval_scope();
         let stop = if let Some(inspector) = inspector {
             interp_ref.run_inspect(execution_config, self, inspector)
         } else if let Some(runner) = interpreter_runner
@@ -1509,6 +1525,7 @@ impl<'a, T: EvmTypes> Evm<'a, T> {
         } else {
             interp_ref.run(execution_config, self)
         };
+        self.exit_frame_approval_scope(approval_scope, stop.is_success());
         self.current_frame = prev_frame;
         self.interpreter_pool.push(interp);
         stop
@@ -1537,6 +1554,34 @@ impl<'a, T: EvmTypes> Host<T> for Evm<'a, T> {
 
     fn block_env(&mut self) -> &BlockEnv<T> {
         &self.block
+    }
+
+    fn frame_tx_param(&mut self, param: Word) -> Result<Word, InstrStop> {
+        self.transaction_frame_param(param)
+    }
+
+    fn frame_data(&mut self, frame_index: Word) -> Result<Bytes, InstrStop> {
+        self.transaction_frame_data(frame_index)
+    }
+
+    fn frame_param(&mut self, frame_index: Word, param: Word) -> Result<Word, InstrStop> {
+        self.transaction_frame_metadata(frame_index, param)
+    }
+
+    fn frame_signature_param(
+        &mut self,
+        signature_index: Word,
+        param: Word,
+    ) -> Result<Word, InstrStop> {
+        self.transaction_signature_metadata(signature_index, param)
+    }
+
+    fn frame_signature_bytes(&mut self, signature_index: Word) -> Result<Bytes, InstrStop> {
+        self.transaction_signature_bytes(signature_index)
+    }
+
+    fn approve_frame(&mut self, current_target: Address, scope: Word) -> Result<(), InstrStop> {
+        self.approve_transaction_frame(current_target, scope)
     }
 
     fn load_account(

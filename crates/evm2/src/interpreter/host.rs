@@ -98,6 +98,40 @@ pub trait Host<T: EvmTypesHost> {
     /// Returns the block environment.
     fn block_env(&mut self) -> &BlockEnv<T>;
 
+    /// Returns an EIP-8141 transaction parameter.
+    fn frame_tx_param(&mut self, _param: Word) -> Result<Word, InstrStop> {
+        Err(InstrStop::InvalidOpcode)
+    }
+
+    /// Returns a copy of one EIP-8141 frame's calldata.
+    fn frame_data(&mut self, _frame_index: Word) -> Result<Bytes, InstrStop> {
+        Err(InstrStop::InvalidOpcode)
+    }
+
+    /// Returns an EIP-8141 frame parameter.
+    fn frame_param(&mut self, _frame_index: Word, _param: Word) -> Result<Word, InstrStop> {
+        Err(InstrStop::InvalidOpcode)
+    }
+
+    /// Returns EIP-8141 signature metadata.
+    fn frame_signature_param(
+        &mut self,
+        _signature_index: Word,
+        _param: Word,
+    ) -> Result<Word, InstrStop> {
+        Err(InstrStop::InvalidOpcode)
+    }
+
+    /// Returns an EIP-8141 arbitrary signature's witness bytes.
+    fn frame_signature_bytes(&mut self, _signature_index: Word) -> Result<Bytes, InstrStop> {
+        Err(InstrStop::InvalidOpcode)
+    }
+
+    /// Applies an EIP-8141 approval from the currently executing call context.
+    fn approve_frame(&mut self, _current_target: Address, _scope: Word) -> Result<(), InstrStop> {
+        Err(InstrStop::InvalidOpcode)
+    }
+
     /// Loads account information.
     fn load_account(
         &mut self,

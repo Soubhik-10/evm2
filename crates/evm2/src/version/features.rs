@@ -225,6 +225,11 @@ evm_features! {
     ///
     /// Default: on since Amsterdam
     EIP2780,
+    /// Applies [EIP-8141](https://eips.ethereum.org/EIPS/eip-8141) frame transactions and
+    /// transaction/frame introspection opcodes.
+    ///
+    /// Default: on since Bogota
+    EIP8141,
 }
 
 #[cfg(test)]

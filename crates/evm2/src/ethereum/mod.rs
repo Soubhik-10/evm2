@@ -4,6 +4,7 @@ mod eip1559;
 mod eip2930;
 mod eip4844;
 mod eip7702;
+mod eip8141;
 mod lazy_eip7702;
 mod legacy;
 
@@ -22,7 +23,7 @@ use crate::{
     version::GasId,
 };
 use alloy_consensus::{
-    TxEip1559, TxEip2930, TxEip7702, TxLegacy,
+    TxEip1559, TxEip2930, TxEip7702, TxEip8141, TxLegacy,
     transaction::{Recovered, Transaction, TxEip4844Variant},
 };
 use alloy_eips::{eip2718::Typed2718, eip2930::AccessList};
@@ -41,6 +42,8 @@ pub enum RecoveredTxEnvelope {
     Eip4844(Recovered<TxEip4844Variant>),
     /// EIP-7702 set-code transaction.
     Eip7702(Recovered<LazyTxEip7702>),
+    /// EIP-8141 frame transaction.
+    Eip8141(Recovered<TxEip8141>),
 }
 
 impl RecoveredTxEnvelope {
@@ -48,7 +51,11 @@ impl RecoveredTxEnvelope {
     pub const fn as_legacy(&self) -> Option<&Recovered<TxLegacy>> {
         match self {
             Self::Legacy(tx) => Some(tx),
-            Self::Eip2930(_) | Self::Eip1559(_) | Self::Eip4844(_) | Self::Eip7702(_) => None,
+            Self::Eip2930(_)
+            | Self::Eip1559(_)
+            | Self::Eip4844(_)
+            | Self::Eip7702(_)
+            | Self::Eip8141(_) => None,
         }
     }
 
@@ -56,7 +63,11 @@ impl RecoveredTxEnvelope {
     pub const fn as_eip2930(&self) -> Option<&Recovered<TxEip2930>> {
         match self {
             Self::Eip2930(tx) => Some(tx),
-            Self::Legacy(_) | Self::Eip1559(_) | Self::Eip4844(_) | Self::Eip7702(_) => None,
+            Self::Legacy(_)
+            | Self::Eip1559(_)
+            | Self::Eip4844(_)
+            | Self::Eip7702(_)
+            | Self::Eip8141(_) => None,
         }
     }
 
@@ -64,7 +75,11 @@ impl RecoveredTxEnvelope {
     pub const fn as_eip1559(&self) -> Option<&Recovered<TxEip1559>> {
         match self {
             Self::Eip1559(tx) => Some(tx),
-            Self::Legacy(_) | Self::Eip2930(_) | Self::Eip4844(_) | Self::Eip7702(_) => None,
+            Self::Legacy(_)
+            | Self::Eip2930(_)
+            | Self::Eip4844(_)
+            | Self::Eip7702(_)
+            | Self::Eip8141(_) => None,
         }
     }
 
@@ -72,7 +87,11 @@ impl RecoveredTxEnvelope {
     pub const fn as_eip4844(&self) -> Option<&Recovered<TxEip4844Variant>> {
         match self {
             Self::Eip4844(tx) => Some(tx),
-            Self::Legacy(_) | Self::Eip2930(_) | Self::Eip1559(_) | Self::Eip7702(_) => None,
+            Self::Legacy(_)
+            | Self::Eip2930(_)
+            | Self::Eip1559(_)
+            | Self::Eip7702(_)
+            | Self::Eip8141(_) => None,
         }
     }
 
@@ -80,7 +99,23 @@ impl RecoveredTxEnvelope {
     pub const fn as_eip7702(&self) -> Option<&Recovered<LazyTxEip7702>> {
         match self {
             Self::Eip7702(tx) => Some(tx),
-            Self::Legacy(_) | Self::Eip2930(_) | Self::Eip1559(_) | Self::Eip4844(_) => None,
+            Self::Legacy(_)
+            | Self::Eip2930(_)
+            | Self::Eip1559(_)
+            | Self::Eip4844(_)
+            | Self::Eip8141(_) => None,
+        }
+    }
+
+    /// Returns the contained EIP-8141 transaction, if this is EIP-8141.
+    pub const fn as_eip8141(&self) -> Option<&Recovered<TxEip8141>> {
+        match self {
+            Self::Eip8141(tx) => Some(tx),
+            Self::Legacy(_)
+            | Self::Eip2930(_)
+            | Self::Eip1559(_)
+            | Self::Eip4844(_)
+            | Self::Eip7702(_) => None,
         }
     }
 
@@ -92,6 +127,7 @@ impl RecoveredTxEnvelope {
             Self::Eip1559(tx) => tx.signer(),
             Self::Eip4844(tx) => tx.signer(),
             Self::Eip7702(tx) => tx.signer(),
+            Self::Eip8141(tx) => tx.inner().sender,
         }
     }
 
@@ -103,6 +139,7 @@ impl RecoveredTxEnvelope {
             Self::Eip1559(tx) => tx.gas_limit(),
             Self::Eip4844(tx) => tx.gas_limit(),
             Self::Eip7702(tx) => tx.gas_limit,
+            Self::Eip8141(tx) => tx.calculate_gas_limit(),
         }
     }
 
@@ -114,6 +151,7 @@ impl RecoveredTxEnvelope {
             Self::Eip1559(tx) => tx.kind(),
             Self::Eip4844(tx) => tx.kind(),
             Self::Eip7702(tx) => tx.to.into(),
+            Self::Eip8141(tx) => tx.kind(),
         }
     }
 
@@ -125,6 +163,7 @@ impl RecoveredTxEnvelope {
             Self::Eip1559(tx) => tx.input(),
             Self::Eip4844(tx) => tx.input(),
             Self::Eip7702(tx) => &tx.input,
+            Self::Eip8141(tx) => tx.input(),
         }
     }
 
@@ -140,6 +179,7 @@ impl RecoveredTxEnvelope {
                 tx.max_priority_fee_per_gas,
                 base_fee,
             ),
+            Self::Eip8141(tx) => tx.effective_gas_price(base_fee),
         }
     }
 
@@ -151,6 +191,7 @@ impl RecoveredTxEnvelope {
             Self::Eip1559(tx) => tx.value(),
             Self::Eip4844(tx) => tx.value(),
             Self::Eip7702(tx) => tx.value,
+            Self::Eip8141(tx) => tx.value(),
         }
     }
 }
@@ -167,6 +208,12 @@ impl From<Recovered<LazyTxEip7702>> for RecoveredTxEnvelope {
     }
 }
 
+impl From<Recovered<TxEip8141>> for RecoveredTxEnvelope {
+    fn from(tx: Recovered<TxEip8141>) -> Self {
+        Self::Eip8141(tx)
+    }
+}
+
 impl Typed2718 for RecoveredTxEnvelope {
     fn ty(&self) -> u8 {
         match self {
@@ -175,6 +222,7 @@ impl Typed2718 for RecoveredTxEnvelope {
             Self::Eip1559(tx) => tx.ty(),
             Self::Eip4844(tx) => tx.ty(),
             Self::Eip7702(tx) => tx.ty(),
+            Self::Eip8141(tx) => tx.ty(),
         }
     }
 }
@@ -197,6 +245,9 @@ pub fn ethereum_tx_registry<T: EvmTypes<Tx = RecoveredTxEnvelope>>(
     }
     if spec_id.enables(SpecId::PRAGUE) {
         registry.register(4, RecoveredTxEnvelope::as_eip7702, eip7702::handle::<T>);
+    }
+    if spec_id.enables(SpecId::BOGOTA) {
+        registry.register(6, RecoveredTxEnvelope::as_eip8141, eip8141::handle::<T>);
     }
 
     registry

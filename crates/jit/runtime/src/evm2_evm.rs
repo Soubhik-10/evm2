@@ -2,9 +2,17 @@
 
 use crate::runtime::{JitBackend, LookupDecision, LookupRequest, RuntimeCacheKey};
 use evm2::{
-    BaseEvmTypes, Evm, ExecutionConfig, InterpreterRunner,
-    interpreter::{InstrStop, Interpreter},
+    BaseEvmTypes, Evm, ExecutionConfig, InterpreterRunner, SpecId,
+    interpreter::{InstrStop, Interpreter, op},
 };
+
+const FRAME_ONLY_OPCODES: &[u8] =
+    &[op::APPROVE, op::TXPARAM, op::FRAMEDATALOAD, op::FRAMEDATACOPY, op::FRAMEPARAM, op::SIGPARAM];
+
+#[inline]
+fn contains_frame_only_opcode(code: &[u8]) -> bool {
+    code.iter().any(|opcode| FRAME_ONLY_OPCODES.contains(opcode))
+}
 
 /// External interpreter runner backed by [`JitBackend`].
 #[derive(Clone, Debug)]
@@ -51,6 +59,12 @@ pub fn run_interpreter<'frame, 'host>(
 ) -> Option<InstrStop> {
     let code_hash = interpreter.original_bytecode_hash();
     let code = interpreter.original_bytecode();
+    // Frame transaction opcodes require transaction-scoped host context that is not exposed by
+    // the compiled ABI yet. A conservative byte scan may also match PUSH data, which only costs
+    // an interpreter fallback and cannot change execution semantics.
+    if config.base_spec_id().enables(SpecId::BOGOTA) && contains_frame_only_opcode(&code) {
+        return None;
+    }
     let decision = backend.lookup(LookupRequest {
         key: RuntimeCacheKey { code_hash, spec_id: config.base_spec_id() },
         code,
@@ -95,6 +109,12 @@ mod tests {
     fn blocking_backend() -> JitBackend {
         JitBackend::new(RuntimeConfig { enabled: true, blocking: true, ..RuntimeConfig::default() })
             .unwrap()
+    }
+
+    #[test]
+    fn detects_frame_only_opcodes_for_interpreter_fallback() {
+        assert!(contains_frame_only_opcode(&[op::PUSH0, op::TXPARAM, op::STOP]));
+        assert!(!contains_frame_only_opcode(&[op::PUSH0, op::ADD, op::STOP]));
     }
 
     #[cfg(feature = "llvm")]

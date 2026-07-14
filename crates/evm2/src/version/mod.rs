@@ -840,6 +840,19 @@ evm_versions! {
         ],
     }
 
+    BOGOTA {
+        features: [
+            EIP8141,
+        ],
+        ops: [
+            APPROVE: ZERO,
+            TXPARAM: BASE,
+            FRAMEDATALOAD: VERYLOW,
+            FRAMEDATACOPY: VERYLOW,
+            FRAMEPARAM: BASE,
+            SIGPARAM: BASE,
+        ],
+    }
 }
 
 macro_rules! op_instr {
@@ -988,6 +1001,12 @@ macro_rules! op_instr {
     (@path $ty:ident, LOG2) => { instr::log<$ty, 2> };
     (@path $ty:ident, LOG3) => { instr::log<$ty, 3> };
     (@path $ty:ident, LOG4) => { instr::log<$ty, 4> };
+    (@path $ty:ident, APPROVE) => { instr::approve<$ty> };
+    (@path $ty:ident, TXPARAM) => { instr::txparam<$ty> };
+    (@path $ty:ident, FRAMEDATALOAD) => { instr::framedataload<$ty> };
+    (@path $ty:ident, FRAMEDATACOPY) => { instr::framedatacopy<$ty> };
+    (@path $ty:ident, FRAMEPARAM) => { instr::frameparam<$ty> };
+    (@path $ty:ident, SIGPARAM) => { instr::sigparam<$ty> };
     (@path $ty:ident, DUPN) => { instr::dupn<$ty> };
     (@path $ty:ident, SWAPN) => { instr::swapn<$ty> };
     (@path $ty:ident, EXCHANGE) => { instr::exchange<$ty> };

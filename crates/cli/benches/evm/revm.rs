@@ -168,6 +168,8 @@ fn revm_spec_id(spec: SpecId) -> RevmSpecId {
         SpecId::PRAGUE => RevmSpecId::PRAGUE,
         SpecId::OSAKA => RevmSpecId::OSAKA,
         SpecId::AMSTERDAM => RevmSpecId::AMSTERDAM,
+        // Benchmark bytecode does not exercise EIP-8141 transaction-scoped opcodes.
+        SpecId::BOGOTA => RevmSpecId::AMSTERDAM,
         _ => panic!("unsupported benchmark spec: {spec:?}"),
     }
 }
