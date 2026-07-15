@@ -134,6 +134,7 @@ const fn spec_name(spec: SpecId) -> &'static str {
         SpecId::PRAGUE => "prague",
         SpecId::OSAKA => "osaka",
         SpecId::AMSTERDAM => "amsterdam",
+        SpecId::BOGOTA => "bogota",
         _ => "other",
     }
 }

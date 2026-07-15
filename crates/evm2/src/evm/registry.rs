@@ -34,6 +34,9 @@ pub enum HandlerError {
         /// Expected transaction type byte.
         expected: u8,
     },
+    /// EIP-8141 frame transaction failed consensus validation.
+    #[error("invalid EIP-8141 frame transaction: {0}")]
+    InvalidFrameTransaction(&'static str),
     /// Sender account does not have the expected nonce.
     #[error("invalid nonce: expected {expected}, got {got}")]
     InvalidNonce {

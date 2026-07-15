@@ -179,6 +179,9 @@ impl OpCode {
                 | Self::CODECOPY
                 | Self::CALLDATACOPY
                 | Self::RETURNDATACOPY
+                | Self::FRAMEDATACOPY
+                | Self::SIGPARAM
+                | Self::APPROVE
                 | Self::CALL
                 | Self::CALLCODE
                 | Self::DELEGATECALL
@@ -546,17 +549,18 @@ opcodes! {
     // 0xA7
     // 0xA8
     // 0xA9
-    // 0xAA
+    0xAA => APPROVE => approve => stack_io(3, 0), terminating;
     // 0xAB
     // 0xAC
     // 0xAD
     // 0xAE
     // 0xAF
-    // 0xB0
-    // 0xB1
-    // 0xB2
-    // 0xB3
-    // 0xB4
+    0xB0 => TXPARAM => txparam => stack_io(1, 1);
+    0xB1 => FRAMEDATALOAD => framedataload => stack_io(2, 1);
+    0xB2 => FRAMEDATACOPY => framedatacopy => stack_io(4, 0);
+    0xB3 => FRAMEPARAM => frameparam => stack_io(2, 1);
+    // SIGPARAM has a parameter-dependent stack effect: 2 -> 1 for metadata and 5 -> 0 for copy.
+    0xB4 => SIGPARAM => sigparam => stack_io(2, 1);
     // 0xB5
     // 0xB6
     // 0xB7

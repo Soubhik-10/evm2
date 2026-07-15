@@ -148,7 +148,8 @@ const SPEC_GATED_OPCODES: &[(u8, SpecId)] = &[
 ];
 
 /// Opcodes defined by the opcode table but intentionally disabled for compiled execution.
-const UNSUPPORTED_OPCODES: &[u8] = &[];
+const UNSUPPORTED_OPCODES: &[u8] =
+    &[op::APPROVE, op::TXPARAM, op::FRAMEDATALOAD, op::FRAMEDATACOPY, op::FRAMEPARAM, op::SIGPARAM];
 
 const fn contains(haystack: &[u8], needle: u8) -> bool {
     let mut i = 0;

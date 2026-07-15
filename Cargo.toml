@@ -175,6 +175,14 @@ lto = "thin"
 codegen-units = 1
 
 [patch.crates-io]
+# EIP-8141 transaction/envelope plumbing.
+alloy-consensus = { git = "https://github.com/Rimeeeeee/alloy", branch = "feat/eip8141-transaction" }
+alloy-eips = { git = "https://github.com/Rimeeeeee/alloy", branch = "feat/eip8141-transaction" }
+alloy-provider = { git = "https://github.com/Rimeeeeee/alloy", branch = "feat/eip8141-transaction" }
+alloy-rpc-client = { git = "https://github.com/Rimeeeeee/alloy", branch = "feat/eip8141-transaction" }
+alloy-rpc-types-eth = { git = "https://github.com/Rimeeeeee/alloy", branch = "feat/eip8141-transaction" }
+alloy-rpc-types-trace = { git = "https://github.com/Rimeeeeee/alloy", branch = "feat/eip8141-transaction" }
+
 # faster compile times: https://github.com/arkworks-rs/algebra/issues/1104
 ark-ec = { git = "https://github.com/DaniPopes/algebra", rev = "a71d9795e2e527cd0c80e6831bd957134de30d22" }
 ark-bls12-381 = { git = "https://github.com/DaniPopes/algebra", rev = "a71d9795e2e527cd0c80e6831bd957134de30d22" }

@@ -189,6 +189,8 @@ const fn revm_spec(spec: SpecId) -> RevmSpecId {
         SpecId::PRAGUE => RevmSpecId::PRAGUE,
         SpecId::OSAKA => RevmSpecId::OSAKA,
         SpecId::AMSTERDAM => RevmSpecId::AMSTERDAM,
+        // The generated differential cases do not include EIP-8141 transactions or opcodes.
+        SpecId::BOGOTA => RevmSpecId::AMSTERDAM,
         _ => RevmSpecId::CANCUN,
     }
 }

@@ -16,6 +16,9 @@ pub(crate) use crypto::*;
 mod env;
 pub(crate) use env::*;
 
+mod frame;
+pub(crate) use frame::*;
+
 mod host;
 pub(crate) use host::*;
 

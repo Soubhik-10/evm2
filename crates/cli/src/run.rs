@@ -403,6 +403,7 @@ enum SpecIdValueEnum {
     PRAGUE,
     OSAKA,
     AMSTERDAM,
+    BOGOTA,
     LATEST,
 }
 
@@ -430,6 +431,7 @@ impl From<SpecIdValueEnum> for SpecId {
             SpecIdValueEnum::PRAGUE => Self::PRAGUE,
             SpecIdValueEnum::OSAKA => Self::OSAKA,
             SpecIdValueEnum::AMSTERDAM => Self::AMSTERDAM,
+            SpecIdValueEnum::BOGOTA => Self::BOGOTA,
             SpecIdValueEnum::LATEST => Self::OSAKA,
         }
     }

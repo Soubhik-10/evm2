@@ -93,6 +93,13 @@ pub struct StateInner<'a> {
     selfdestructs: AddressSet,
 }
 
+/// Runtime warm accesses retained across successful EIP-8141 frames.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct WarmAccessSnapshot {
+    addresses: Vec<Address>,
+    storage_slots: Vec<(Address, Word)>,
+}
+
 impl<'a> State<'a> {
     /// Creates a new state over an initial database.
     pub fn new(initial: impl DynDatabase + 'a) -> Self {
@@ -327,6 +334,45 @@ impl<'a> State<'a> {
         self.inner.prewarm_set = prewarm_set;
     }
 
+    /// Captures runtime account and storage warmth without duplicating the transaction's base
+    /// prewarm set, which is already non-revertible.
+    pub(crate) fn warm_access_snapshot(&self) -> WarmAccessSnapshot {
+        let addresses = self
+            .accounts
+            .iter()
+            .filter_map(|(address, account)| account.is_warm.then_some(*address))
+            .collect();
+        let storage_slots = self
+            .storage
+            .iter()
+            .flat_map(|(address, storage)| {
+                storage
+                    .slots
+                    .iter()
+                    .filter_map(|(key, slot)| slot.is_warm.then_some((*address, *key)))
+            })
+            .collect();
+        WarmAccessSnapshot { addresses, storage_slots }
+    }
+
+    /// Restores warmth captured after successful EIP-8141 frames following an atomic state
+    /// rollback. These accesses predate the next frame checkpoint and therefore deliberately do
+    /// not create new journal entries.
+    pub(crate) fn restore_warm_access_snapshot(&mut self, snapshot: &WarmAccessSnapshot) {
+        for address in &snapshot.addresses {
+            if let Some(account) = self.accounts.get_mut(address) {
+                account.is_warm = true;
+            }
+        }
+        for (address, key) in &snapshot.storage_slots {
+            if let Some(slot) =
+                self.storage.get_mut(address).and_then(|storage| storage.slots.get_mut(key))
+            {
+                slot.is_warm = true;
+            }
+        }
+    }
+
     /// Clears transaction-scoped substate.
     pub fn clear_transaction_state(&mut self) {
         self.accounts.clear();
@@ -336,6 +382,12 @@ impl<'a> State<'a> {
         self.selfdestructs.clear();
         self.transient_storage.clear();
         self.logs.clear();
+    }
+
+    /// Clears EIP-1153 transient storage at an EIP-8141 frame boundary.
+    #[inline]
+    pub(crate) fn clear_transient_storage(&mut self) {
+        self.transient_storage.clear();
     }
 
     /// Ensures the account is present in the transaction overlay, loading it from the backing
